@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Diagnostic Tool</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .panel {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="file"], input[type="number"], button {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+            padding: 10px 15px;
+            border: none;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .button-secondary {
+            background-color: #27ae60;
+        }
+        .button-secondary:hover {
+            background-color: #219653;
+        }
+        .button-container {
+            display: flex;
+            gap: 10px;
+        }
+        .class-selection {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .log-container {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .results {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .result-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: -1px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            background-color: #f1f1f1;
+            border-radius: 4px 4px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: white;
+            border-bottom: 1px solid white;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 0 4px 4px 4px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .test-image-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .test-image-options input {
+            width: 80px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Object Detection API Diagnostic Tool</h1>
+    <p>This tool helps you diagnose issues with the API by showing the full request and response details.</p>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>Test Parameters</h2>
+            <div class="form-group">
+                <label for="imageFile">Image File:</label>
+                <input type="file" id="imageFile" accept="image/*">
+                <div class="test-image-options">
+                    <button id="generateTestImage" class="button-secondary">Generate Test Image</button>
+                    <input type="number" id="imageWidth" min="320" max="1280" step="10" value="640" placeholder="Width">
+                    <input type="number" id="imageHeight" min="240" max="960" step="10" value="480" placeholder="Height">
+                    <input type="number" id="numShapes" min="1" max="20" step="1" value="5" placeholder="Shapes">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="confidenceThreshold">Confidence Threshold (0.1-1.0):</label>
+                <input type="number" id="confidenceThreshold" min="0.1" max="1.0" step="0.05" value="0.25">
+            </div>
+            <div class="form-group">
+                <label>Classes to Detect:</label>
+                <div class="class-selection" id="classSelection">
+                    <!-- Classes will be loaded here -->
+                </div>
+            </div>
+            <div class="button-container">
+                <button id="runTest">Run Test</button>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="tabs">
+                <div class="tab active" data-tab="log">Log</div>
+                <div class="tab" data-tab="request">Request Details</div>
+                <div class="tab" data-tab="response">Response</div>
+                <div class="tab" data-tab="result">Result</div>
+            </div>
+            <div class="tab-content active" id="log">
+                <h3>Log</h3>
+                <div class="log-container" id="logOutput">Diagnostic log will appear here...</div>
+            </div>
+            <div class="tab-content" id="request">
+                <h3>Request Details</h3>
+                <div class="log-container" id="requestDetails">Request details will appear here...</div>
+            </div>
+            <div class="tab-content" id="response">
+                <h3>Response Details</h3>
+                <div class="log-container" id="responseDetails">Response details will appear here...</div>
+            </div>
+            <div class="tab-content" id="result">
+                <h3>Detection Result</h3>
+                <div class="results" id="resultContainer">
+                    <p>Detection results will appear here...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // COCO class names (default YOLOv8 classes)
+        const classNames = [
+            'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
+            'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat',
+            'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack',
+            'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball',
+            'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket',
+            'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
+            'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair',
+            'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse',
+            'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator',
+            'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
+        ];
+
+        // Log function
+        function log(message, container = 'logOutput') {
+            const logContainer = document.getElementById(container);
+            const timestamp = new Date().toLocaleTimeString();
+            logContainer.innerHTML += `[${timestamp}] ${message}\n`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Initialize class checkboxes
+        function initClassSelection() {
+            const container = document.getElementById('classSelection');
+            
+            classNames.forEach((className, index) => {
+                const checkbox = document.createElement('div');
+                checkbox.innerHTML = `
+                    <input type="checkbox" id="class-${index}" value="${index}">
+                    <label for="class-${index}">${className}</label>
+                `;
+                container.appendChild(checkbox);
+            });
+
+            // Select some common classes by default
+            [0, 2, 15, 16].forEach(index => {
+                const checkbox = document.getElementById(`class-${index}`);
+                if (checkbox) checkbox.checked = true;
+            });
+        }
+
+        // Handle tab switching
+        function initTabs() {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Remove active class from all tabs and content
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    
+                    // Add active class to clicked tab
+                    tab.classList.add('active');
+                    
+                    // Show corresponding content
+                    const tabId = tab.getAttribute('data-tab');
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+        }
+
+        // Generate a test image
+        async function generateTestImage() {
+            const width = document.getElementById('imageWidth').value || 640;
+            const height = document.getElementById('imageHeight').value || 480;
+            const numShapes = document.getElementById('numShapes').value || 5;
+            
+            log(`Generating test image (${width}x${height} with ${numShapes} shapes)...`);
+            
+            try {
+                const response = await fetch('/generate-test-image', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        width: parseInt(width),
+                        height: parseInt(height),
+                        num_shapes: parseInt(numShapes)
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`Test image generated successfully`);
+                    
+                    // Create a file object from the returned image data
+                    const imageBlob = await fetch(data.image_url).then(r => r.blob());
+                    const file = new File([imageBlob], 'test_image.jpg', { type: 'image/jpeg' });
+                    
+                    // Create a new FileList containing this file
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    
+                    // Update the file input
+                    const fileInput = document.getElementById('imageFile');
+                    fileInput.files = dataTransfer.files;
+                    
+                    log(`Test image loaded into file input`);
+                    
+                    // Display a preview of the generated image
+                    const resultContainer = document.getElementById('resultContainer');
+                    resultContainer.innerHTML = `
+                        <p>Generated test image:</p>
+                        <img src="${data.image_url}" class="result-image" alt="Generated test image">
+                    `;
+                    document.querySelector('.tab[data-tab="result"]').click();
+                } else {
+                    const errorText = await response.text();
+                    log(`Error generating test image: ${errorText}`);
+                }
+            } catch (error) {
+                log(`Error generating test image: ${error.message}`);
+            }
+        }
+
+        // Run the API test
+        async function runTest() {
+            const imageFile = document.getElementById('imageFile');
+            const confidenceThreshold = document.getElementById('confidenceThreshold');
+            
+            if (!imageFile.files.length) {
+                log('Error: Please select an image file');
+                return;
+            }
+
+            // Get selected classes
+            const selectedClasses = [];
+            document.querySelectorAll('#classSelection input:checked').forEach(checkbox => {
+                selectedClasses.push(parseInt(checkbox.value));
+            });
+
+            // Create form data
+            const formData = new FormData();
+            formData.append('file', imageFile.files[0]);
+            formData.append('conf', confidenceThreshold.value);
+            
+            selectedClasses.forEach(classId => {
+                formData.append('classes', classId);
+            });
+
+            // Clear previous results
+            document.getElementById('requestDetails').textContent = '';
+            document.getElementById('responseDetails').textContent = '';
+            document.getElementById('resultContainer').innerHTML = '<p>Processing...</p>';
+
+            // Log request details
+            log('Starting API request...');
+            log(`Image: ${imageFile.files[0].name} (${(imageFile.files[0].size / 1024).toFixed(2)} KB)`);
+            log(`Confidence Threshold: ${confidenceThreshold.value}`);
+            log(`Selected Classes: ${selectedClasses.map(id => `${id} (${classNames[id]})`).join(', ')}`);
+
+            // Display request details
+            const requestDetails = document.getElementById('requestDetails');
+            requestDetails.textContent = 'FormData contents:\n';
+            for (let pair of formData.entries()) {
+                requestDetails.textContent += `${pair[0]}: ${pair[1]}\n`;
+            }
+
+            try {
+                // Make API request
+                log('Sending request to /detect...');
+                const startTime = performance.now();
+                
+                const response = await fetch('/detect', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const endTime = performance.now();
+                const responseTime = (endTime - startTime).toFixed(2);
+                
+                // Log response details
+                log(`Response received (${responseTime}ms)`);
+                log(`Status: ${response.status} ${response.statusText}`);
+                
+                // Display response headers
+                const responseDetails = document.getElementById('responseDetails');
+                responseDetails.textContent = `Status: ${response.status} ${response.statusText}\n\nHeaders:\n`;
+                for (let [key, value] of response.headers.entries()) {
+                    responseDetails.textContent += `${key}: ${value}\n`;
+                }
+
+                if (response.ok) {
+                    // Handle successful response
+                    const responseData = await response.json();
+                    log(`Detection successful: ${responseData.detections.length} objects found`);
+                    
+                    // Display response body
+                    responseDetails.textContent += '\nBody:\n' + JSON.stringify(responseData, null, 2);
+                    
+                    // Display result image
+                    const resultContainer = document.getElementById('resultContainer');
+                    resultContainer.innerHTML = '';
+                    
+                    if (responseData.result_image) {
+                        const img = document.createElement('img');
+                        img.src = 'data:image/jpeg;base64,' + responseData.result_image;
+                        img.className = 'result-image';
+                        resultContainer.appendChild(img);
+                    } else {
+                        resultContainer.innerHTML = '<p>No result image returned.</p>';
+                    }
+                    
+                    // Switch to result tab
+                    document.querySelector('.tab[data-tab="result"]').click();
+                } else {
+                    // Handle error response
+                    log(`Error: API returned status ${response.status}`);
+                    
+                    try {
+                        const errorData = await response.json();
+                        log(`Error details: ${JSON.stringify(errorData)}`);
+                        responseDetails.textContent += '\nError:\n' + JSON.stringify(errorData, null, 2);
+                    } catch (e) {
+                        const errorText = await response.text();
+                        log(`Could not parse error response: ${errorText}`);
+                        responseDetails.textContent += '\nError (raw):\n' + errorText;
+                    }
+                    
+                    document.getElementById('resultContainer').innerHTML = '<p>Detection failed. See log for details.</p>';
+                    // Switch to response tab to show error details
+                    document.querySelector('.tab[data-tab="response"]').click();
+                }
+            } catch (error) {
+                // Handle network or other errors
+                log(`Error: ${error.message}`);
+                document.getElementById('responseDetails').textContent += `\nNetwork Error: ${error.message}`;
+                document.getElementById('resultContainer').innerHTML = '<p>Request failed. See log for details.</p>';
+            }
+        }
+
+        // Initialize the page
+        window.addEventListener('DOMContentLoaded', () => {
+            initClassSelection();
+            initTabs();
+            
+            // Set up event listeners
+            document.getElementById('runTest').addEventListener('click', runTest);
+            document.getElementById('generateTestImage').addEventListener('click', generateTestImage);
+            
+            log('Diagnostic tool initialized');
+            log('Select an image and parameters, then click "Run Test"');
+            log('You can also generate a test image with random shapes for testing');
+        });
+    </script>
+</body>
+</html> 
