@@ -21,7 +21,7 @@ This project implements a YOLOv8-based object detection system for identifying p
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/yourusername/object-detection.git
+git clone https://github.com/dhushyanth-h-m/cv-object-detection
 cd object-detection
 ```
 
